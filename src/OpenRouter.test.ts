@@ -2,18 +2,28 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import OpenRouter from "./OpenRouter.ts";
 
-test("fromEnv: throws when OPENROUTER_BASE_URL is unset", async () => {
+test("fromEnv: throws when OPENROUTER_API_KEY is unset", async () => {
     await assert.rejects(
         () => OpenRouter.fromEnv({}, "anthropic/claude-opus-latest"),
-        /OPENROUTER_BASE_URL must be set/,
+        /OPENROUTER_API_KEY must be set/,
     );
 });
 
-test("fromEnv: throws when OPENROUTER_API_KEY is unset", async () => {
-    await assert.rejects(
-        () => OpenRouter.fromEnv({ OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1" }, "anthropic/claude-opus-latest"),
-        /OPENROUTER_API_KEY must be set/,
-    );
+test("fromEnv: uses default base URL when OPENROUTER_BASE_URL unset", async (t) => {
+    let captured: string | URL | null = null;
+    const originalFetch = globalThis.fetch;
+    t.after(() => { globalThis.fetch = originalFetch; });
+    globalThis.fetch = (async (url: string | URL) => {
+        captured = url;
+        return {
+            ok: true,
+            json: async () => ({ data: [{ id: "anthropic/claude-opus-latest", context_length: 200000 }] }),
+        };
+    }) as typeof fetch;
+
+    const p = await OpenRouter.fromEnv({ OPENROUTER_API_KEY: "sk-test" }, "anthropic/claude-opus-latest");
+    assert.equal(p.contextSize, 200000);
+    assert.equal(String(captured), "https://openrouter.ai/api/v1/models");
 });
 
 test("fromEnv: resolves contextSize from /models catalog", async (t) => {

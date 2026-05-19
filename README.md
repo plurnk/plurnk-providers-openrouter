@@ -31,12 +31,12 @@ const result = await provider.generate({
 
 | Variable | Required | Notes |
 |---|---|---|
-| `OPENROUTER_BASE_URL` | yes | OpenRouter API root. `https://openrouter.ai/api/v1` |
 | `OPENROUTER_API_KEY`  | yes | Bearer token from openrouter.ai/keys |
-| `OPENROUTER_FETCH_TIMEOUT_MS` | no | Default `600000` (10m) |
+| `OPENROUTER_BASE_URL` | no | Override the API root. Default `https://openrouter.ai/api/v1` |
 | `OPENROUTER_HTTP_REFERER` | no | Sent as the `HTTP-Referer` ranking header |
 | `OPENROUTER_X_TITLE` | no | Sent as the `X-Title` ranking header |
-| `PLURNK_REASON` | no | Universal reasoning-token budget; `0` disables. OpenRouter relays reasoning via `include_reasoning: true` whenever the budget is positive. |
+| `PLURNK_REASON` | no | Universal reasoning-token budget (PROVIDERS.md §3.8); `0` disables. OpenRouter relays reasoning via `include_reasoning: true` whenever the budget is positive. |
+| `PLURNK_PROVIDER_FETCH_TIMEOUT` | no | Universal fetch timeout in ms (PROVIDERS.md §3.9). Default `600000` (10m). |
 
 ## context size
 

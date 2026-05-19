@@ -2,6 +2,16 @@ import { PlurnkParser } from "@plurnk/plurnk-grammar";
 import type { PlurnkStatement } from "@plurnk/plurnk-grammar";
 import { chatCompletionStream, OpenAiHttpError } from "./openaiStream.ts";
 
+// OpenRouter's API root. There is no second location and no per-region split,
+// so this is a code constant rather than required env. `OPENROUTER_BASE_URL`
+// remains an optional override for tunnels, proxies, or local replays.
+const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
+
+// PROVIDERS.md §3.9 default — providers MAY pick lower if they know their
+// endpoint is fast, but openrouter relays through arbitrary upstreams that
+// can take many minutes for long Claude / DeepSeek completions.
+const DEFAULT_FETCH_TIMEOUT_MS = 600000;
+
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 export type ProviderAssistant = {
@@ -60,15 +70,18 @@ export default class OpenRouter {
     // pays the lookup cost once at boot and the provider holds a frozen
     // contextSize for the rest of its life.
     static async fromEnv(env: NodeJS.ProcessEnv, model: string): Promise<OpenRouter> {
-        const baseUrl = env.OPENROUTER_BASE_URL;
-        if (baseUrl === undefined || baseUrl.length === 0) {
-            throw new Error("openrouter provider: OPENROUTER_BASE_URL must be set");
-        }
         const apiKey = env.OPENROUTER_API_KEY;
         if (apiKey === undefined || apiKey.length === 0) {
             throw new Error("openrouter provider: OPENROUTER_API_KEY must be set");
         }
-        const fetchTimeoutMs = Number(env.OPENROUTER_FETCH_TIMEOUT_MS ?? "600000");
+        const baseUrl = env.OPENROUTER_BASE_URL !== undefined && env.OPENROUTER_BASE_URL.length > 0
+            ? env.OPENROUTER_BASE_URL
+            : DEFAULT_BASE_URL;
+        // PROVIDERS.md §3.9: universal operator knob applies to every
+        // streaming HTTP provider in the registry.
+        const fetchTimeoutMs = env.PLURNK_PROVIDER_FETCH_TIMEOUT !== undefined && env.PLURNK_PROVIDER_FETCH_TIMEOUT.length > 0
+            ? Number(env.PLURNK_PROVIDER_FETCH_TIMEOUT)
+            : DEFAULT_FETCH_TIMEOUT_MS;
         const normalizedBase = baseUrl.replace(/\/v1\/?$/, "");
         const contextSize = await fetchContextSize({
             baseUrl: normalizedBase,
