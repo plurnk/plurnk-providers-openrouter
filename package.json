@@ -32,9 +32,6 @@
         "build": "npm run build:dist",
         "prepare": "npm run build"
     },
-    "dependencies": {
-        "@plurnk/plurnk-grammar": "github:plurnk/plurnk-grammar"
-    },
     "devDependencies": {
         "@types/node": "^25.8.0",
         "typescript": "^6.0.3"

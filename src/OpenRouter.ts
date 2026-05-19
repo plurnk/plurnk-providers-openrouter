@@ -1,5 +1,3 @@
-import { PlurnkParser } from "@plurnk/plurnk-grammar";
-import type { PlurnkStatement } from "@plurnk/plurnk-grammar";
 import { chatCompletionStream, OpenAiHttpError } from "./openaiStream.ts";
 
 // OpenRouter's API root. There is no second location and no per-region split,
@@ -14,11 +12,19 @@ const DEFAULT_FETCH_TIMEOUT_MS = 600000;
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
+export type ProviderUsage = {
+    prompt: number;
+    completion: number;
+    cached: number;
+    total: number;
+};
+
 export type ProviderAssistant = {
-    tokens: number;
     content: string;
-    ops: PlurnkStatement[];
     reasoning: string | null;
+    usage: ProviderUsage;
+    finishReason: string | null;
+    model: string;
 };
 
 export type ProviderResponse = {
@@ -26,8 +32,8 @@ export type ProviderResponse = {
     assistantRaw: unknown;
 };
 
-// All fields required. Defaults belong in `.env.example`, not in library
-// code. Build the config from env explicitly — typically via `fromEnv`.
+// All fields required. Build the config from env explicitly — typically via
+// the static `fromEnv` factory.
 export type OpenRouterConfig = {
     baseUrl: string;
     apiKey: string;
@@ -77,8 +83,6 @@ export default class OpenRouter {
         const baseUrl = env.OPENROUTER_BASE_URL !== undefined && env.OPENROUTER_BASE_URL.length > 0
             ? env.OPENROUTER_BASE_URL
             : DEFAULT_BASE_URL;
-        // PROVIDERS.md §3.9: universal operator knob applies to every
-        // streaming HTTP provider in the registry.
         const fetchTimeoutMs = env.PLURNK_PROVIDER_FETCH_TIMEOUT !== undefined && env.PLURNK_PROVIDER_FETCH_TIMEOUT.length > 0
             ? Number(env.PLURNK_PROVIDER_FETCH_TIMEOUT)
             : DEFAULT_FETCH_TIMEOUT_MS;
@@ -113,10 +117,6 @@ export default class OpenRouter {
         if (this.#xTitle.length > 0) headers["X-Title"] = this.#xTitle;
 
         const body: Record<string, unknown> = { model: this.#model, messages };
-        // PROVIDERS.md §3.8: provider owns wire-format translation of the
-        // universal PLURNK_REASON token budget. OpenRouter relays the
-        // upstream's reasoning when `include_reasoning: true`; the
-        // upstream still owns whether it produces any.
         if (this.#reasonBudget > 0) body.include_reasoning = true;
 
         const timeoutSignal = AbortSignal.timeout(this.#fetchTimeoutMs);
@@ -129,30 +129,20 @@ export default class OpenRouter {
             signal: effectiveSignal,
         });
 
-        // PROVIDERS.md §3.3: split parser items into statements (→ ops) and
-        // text fragments (→ reasoning). Free-form prose between ops is the
-        // model's casual narration; treat it as reasoning per engine policy.
-        const parsed = PlurnkParser.parse(raw.content);
-        const ops: PlurnkStatement[] = [];
-        const textFragments: string[] = [];
-        for (const item of parsed.items) {
-            if (item.kind === "statement") ops.push(item.statement);
-            else if (item.kind === "text") {
-                const trimmed = item.text.trim();
-                if (trimmed.length > 0) textFragments.push(trimmed);
-            }
-        }
-        const wireReasoning = raw.reasoning_content.length > 0 ? raw.reasoning_content : "";
-        const scrapedReasoning = textFragments.join("\n");
-        const reasoningParts = [wireReasoning, scrapedReasoning].filter((s) => s.length > 0);
-        const reasoning = reasoningParts.length > 0 ? reasoningParts.join("\n\n") : null;
+        const usage: ProviderUsage = {
+            prompt: raw.usage?.prompt_tokens ?? 0,
+            completion: raw.usage?.completion_tokens ?? 0,
+            cached: raw.usage?.cached_tokens ?? 0,
+            total: raw.usage?.total_tokens ?? 0,
+        };
 
         return {
             assistant: {
-                tokens: raw.usage?.completion_tokens ?? 0,
                 content: raw.content,
-                ops,
-                reasoning,
+                reasoning: raw.reasoning_content.length > 0 ? raw.reasoning_content : null,
+                usage,
+                finishReason: raw.finish_reason,
+                model: raw.model ?? this.#model,
             },
             assistantRaw: raw,
         };
