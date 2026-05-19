@@ -1,0 +1,53 @@
+# @plurnk/plurnk-providers-openrouter
+
+OpenRouter provider for [plurnk-service](https://github.com/plurnk/plurnk-service). Routes `openrouter/{publisher}/{model}` aliases through OpenRouter's OpenAI-compatible relay.
+
+## install
+
+```
+npm install @plurnk/plurnk-providers-openrouter
+```
+
+Requires Node ≥ 25 (native TypeScript).
+
+## use
+
+plurnk-service constructs the provider via the static `fromEnv` factory (PROVIDERS.md §3.7). Direct construction is also supported.
+
+```ts
+import OpenRouter from "@plurnk/plurnk-providers-openrouter";
+
+const provider = await OpenRouter.fromEnv(process.env, "anthropic/claude-opus-latest");
+
+const result = await provider.generate({
+    messages: [
+        { role: "system", content: "You are a plurnk agent." },
+        { role: "user",   content: "What is the capital of France?" },
+    ],
+});
+```
+
+## env
+
+| Variable | Required | Notes |
+|---|---|---|
+| `OPENROUTER_BASE_URL` | yes | OpenRouter API root. `https://openrouter.ai/api/v1` |
+| `OPENROUTER_API_KEY`  | yes | Bearer token from openrouter.ai/keys |
+| `OPENROUTER_FETCH_TIMEOUT_MS` | no | Default `600000` (10m) |
+| `OPENROUTER_HTTP_REFERER` | no | Sent as the `HTTP-Referer` ranking header |
+| `OPENROUTER_X_TITLE` | no | Sent as the `X-Title` ranking header |
+| `PLURNK_REASON` | no | Universal reasoning-token budget; `0` disables. OpenRouter relays reasoning via `include_reasoning: true` whenever the budget is positive. |
+
+## context size
+
+Dynamic, resolved at `fromEnv` time from `${baseUrl}/models`. The provider holds the model id passed in and looks it up in the catalog; the `:provider` provider-pinning suffix (e.g., `anthropic/claude-opus-latest:nitro`) is stripped for the lookup since it's a routing hint, not part of model identity.
+
+If the model isn't in the catalog or `/models` errors, `fromEnv` throws — there is no hardcoded fallback.
+
+## reasoning normalization
+
+OpenRouter surfaces chain-of-thought under several deltas (`reasoning_content`, `reasoning`, `thinking`, plus a `reasoning_details[]` array). The shared SSE accumulator coalesces the first three; the array form is captured under `chunkMetadata`. Free-form text emitted between plurnk ops is also scraped into `reasoning` per [PROVIDERS.md §3.3](https://github.com/plurnk/plurnk-service/blob/main/PROVIDERS.md).
+
+## license
+
+MIT.
