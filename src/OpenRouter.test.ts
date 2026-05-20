@@ -101,6 +101,8 @@ test("fromEnv: throws when /models returns non-2xx", async (t) => {
     );
 });
 
+const zeroPricing = { prompt_pico_per_token: 0, completion_pico_per_token: 0, cached_pico_per_token: 0 };
+
 test("contextSize, model, baseUrl exposed on instance", () => {
     const p = new OpenRouter({
         baseUrl: "https://openrouter.ai/api/v1",
@@ -111,6 +113,7 @@ test("contextSize, model, baseUrl exposed on instance", () => {
         reasonBudget: 0,
         httpReferer: "",
         xTitle: "",
+        pricing: zeroPricing,
     });
     assert.equal(p.contextSize, 200000);
     assert.equal(p.model, "anthropic/claude-opus-latest");
@@ -121,13 +124,46 @@ test("baseUrl strips /v1 suffix", () => {
     const a = new OpenRouter({
         baseUrl: "https://openrouter.ai/api/v1",
         apiKey: "sk", model: "m", contextSize: 1, fetchTimeoutMs: 1, reasonBudget: 0,
-        httpReferer: "", xTitle: "",
+        httpReferer: "", xTitle: "", pricing: zeroPricing,
     });
     assert.equal(a.baseUrl, "https://openrouter.ai/api");
     const b = new OpenRouter({
         baseUrl: "https://openrouter.ai/api/v1/",
         apiKey: "sk", model: "m", contextSize: 1, fetchTimeoutMs: 1, reasonBudget: 0,
-        httpReferer: "", xTitle: "",
+        httpReferer: "", xTitle: "", pricing: zeroPricing,
     });
     assert.equal(b.baseUrl, "https://openrouter.ai/api");
+});
+
+test("costFor: pico-per-token math from catalog rates", () => {
+    // Claude Opus-style rates: $15/M input ($1.5e-5/token) = 1.5e7 pico/token;
+    // $75/M output ($7.5e-5/token) = 7.5e7 pico/token.
+    const p = new OpenRouter({
+        baseUrl: "https://openrouter.ai/api/v1",
+        apiKey: "sk", model: "anthropic/claude-opus", contextSize: 1, fetchTimeoutMs: 1, reasonBudget: 0,
+        httpReferer: "", xTitle: "",
+        pricing: { prompt_pico_per_token: 1.5e7, completion_pico_per_token: 7.5e7, cached_pico_per_token: 1.5e7 },
+    });
+    // 1000 prompt × 1.5e7 + 100 completion × 7.5e7 = 1.5e10 + 7.5e9 = 2.25e10 pico = $0.0225
+    assert.equal(p.costFor({ prompt: 1000, completion: 100, cached: 0, total: 1100 }), 22500000000);
+});
+
+test("costFor: returns 0 when rates are zero (free models)", () => {
+    const p = new OpenRouter({
+        baseUrl: "https://openrouter.ai/api/v1",
+        apiKey: "sk", model: "free-model", contextSize: 1, fetchTimeoutMs: 1, reasonBudget: 0,
+        httpReferer: "", xTitle: "", pricing: zeroPricing,
+    });
+    assert.equal(p.costFor({ prompt: 1000, completion: 500, cached: 0, total: 1500 }), 0);
+});
+
+test("countTokens: heuristic returns 0 for empty, ceil(len/4) otherwise", () => {
+    const p = new OpenRouter({
+        baseUrl: "https://openrouter.ai/api/v1",
+        apiKey: "sk", model: "m", contextSize: 1, fetchTimeoutMs: 1, reasonBudget: 0,
+        httpReferer: "", xTitle: "", pricing: zeroPricing,
+    });
+    assert.equal(p.countTokens(""), 0);
+    assert.equal(p.countTokens("abcd"), 1);
+    assert.equal(p.countTokens("abcde"), 2);
 });

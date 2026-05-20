@@ -32,6 +32,18 @@ export type ProviderResponse = {
     assistantRaw: unknown;
 };
 
+// Per-token pricing in pico-dollars per token. OpenRouter's /v1/models
+// exposes prompt/completion rates as USD-per-token strings; sibling converts
+// to pico-dollars (USD × 1e12) at fromEnv time. `cached` is OpenRouter's
+// upstream-reported subset of prompt — not a separate billing dimension at
+// the relay, so engine uses prompt-rate for cached portion (matches how
+// upstreams typically include cached_tokens within prompt_tokens).
+export type OpenRouterPricing = {
+    prompt_pico_per_token: number;
+    completion_pico_per_token: number;
+    cached_pico_per_token: number;
+};
+
 // All fields required. Build the config from env explicitly — typically via
 // the static `fromEnv` factory.
 export type OpenRouterConfig = {
@@ -48,6 +60,8 @@ export type OpenRouterConfig = {
     // Ranking headers sent to OpenRouter. Empty string means omit.
     httpReferer: string;
     xTitle: string;
+    // Per-token pricing resolved from /v1/models at construction time.
+    pricing: OpenRouterPricing;
 };
 
 export default class OpenRouter {
@@ -59,6 +73,7 @@ export default class OpenRouter {
     #reasonBudget: number;
     #httpReferer: string;
     #xTitle: string;
+    #pricing: OpenRouterPricing;
 
     constructor(config: OpenRouterConfig) {
         this.#baseUrl = config.baseUrl.replace(/\/v1\/?$/, "");
@@ -69,6 +84,7 @@ export default class OpenRouter {
         this.#reasonBudget = config.reasonBudget;
         this.#httpReferer = config.httpReferer;
         this.#xTitle = config.xTitle;
+        this.#pricing = config.pricing;
     }
 
     // PROVIDERS.md §3.7 factory contract. Async: resolves contextSize from
@@ -87,7 +103,7 @@ export default class OpenRouter {
             ? Number(env.PLURNK_PROVIDER_FETCH_TIMEOUT)
             : DEFAULT_FETCH_TIMEOUT_MS;
         const normalizedBase = baseUrl.replace(/\/v1\/?$/, "");
-        const contextSize = await fetchContextSize({
+        const info = await fetchModelInfo({
             baseUrl: normalizedBase,
             apiKey,
             model,
@@ -97,17 +113,38 @@ export default class OpenRouter {
             baseUrl,
             apiKey,
             model,
-            contextSize,
+            contextSize: info.contextSize,
             fetchTimeoutMs,
             reasonBudget: Number(env.PLURNK_REASON ?? "0"),
             httpReferer: env.OPENROUTER_HTTP_REFERER ?? "",
             xTitle: env.OPENROUTER_X_TITLE ?? "",
+            pricing: info.pricing,
         });
     }
 
     get contextSize(): number { return this.#contextSize; }
     get model(): string { return this.#model; }
     get baseUrl(): string { return this.#baseUrl; }
+    get pricing(): OpenRouterPricing { return this.#pricing; }
+
+    // Heuristic tokenizer. OpenRouter relays through dozens of upstreams with
+    // different tokenizer families (cl100k for OpenAI, Claude-bpe, sentencepiece
+    // for Gemini, llama-tokenizer for open-weight). Without a per-upstream
+    // tokenizer dispatch (pass-2 work), 4-chars-per-token is the universally
+    // approximate fallback.
+    countTokens(text: string): number {
+        return text.length === 0 ? 0 : Math.ceil(text.length / 4);
+    }
+
+    // Cost calculation from OpenRouter-reported per-token pricing.
+    // cached portion is billed at prompt rate (OpenRouter's upstreams report
+    // cached_tokens as a subset of prompt_tokens, already included; pricing
+    // is a single prompt rate that covers both).
+    costFor(usage: ProviderUsage): number {
+        const promptCost = usage.prompt * this.#pricing.prompt_pico_per_token;
+        const completionCost = usage.completion * this.#pricing.completion_pico_per_token;
+        return Math.round(promptCost + completionCost);
+    }
 
     async generate({ messages, signal }: { messages: ChatMessage[]; signal?: AbortSignal }): Promise<ProviderResponse> {
         const headers: Record<string, string> = {
@@ -155,12 +192,23 @@ export default class OpenRouter {
 // hint, not part of model identity.
 const catalogLookupId = (model: string): string => model.split(":")[0]!;
 
-type CatalogEntry = { id: string; context_length?: number };
+type CatalogPricing = { prompt?: string; completion?: string };
+type CatalogEntry = { id: string; context_length?: number; pricing?: CatalogPricing };
 type CatalogResponse = { data?: CatalogEntry[] };
 
-const fetchContextSize = async ({
+// USD-string -> pico-dollars-per-token. OpenRouter's catalog reports rates
+// as USD-per-token strings (e.g. "0.000003" = $3/M tokens). 1 USD = 1e12
+// pico-dollars; multiplying the parsed float by 1e12 gives pico-per-token.
+const parsePicoRate = (raw: string | undefined): number => {
+    if (raw === undefined) return 0;
+    const usd = Number.parseFloat(raw);
+    if (!Number.isFinite(usd) || usd <= 0) return 0;
+    return usd * 1e12;
+};
+
+const fetchModelInfo = async ({
     baseUrl, apiKey, model, fetchTimeoutMs,
-}: { baseUrl: string; apiKey: string; model: string; fetchTimeoutMs: number }): Promise<number> => {
+}: { baseUrl: string; apiKey: string; model: string; fetchTimeoutMs: number }): Promise<{ contextSize: number; pricing: OpenRouterPricing }> => {
     const res = await fetch(`${baseUrl}/v1/models`, {
         headers: { Authorization: `Bearer ${apiKey}` },
         signal: AbortSignal.timeout(fetchTimeoutMs),
@@ -176,7 +224,18 @@ const fetchContextSize = async ({
     if (entry.context_length === undefined || entry.context_length <= 0) {
         throw new Error(`OpenRouter /models has no context_length for "${lookupId}"`);
     }
-    return entry.context_length;
+    const promptRate = parsePicoRate(entry.pricing?.prompt);
+    const completionRate = parsePicoRate(entry.pricing?.completion);
+    return {
+        contextSize: entry.context_length,
+        pricing: {
+            prompt_pico_per_token: promptRate,
+            completion_pico_per_token: completionRate,
+            // OpenRouter doesn't expose a separate cached rate; cached tokens
+            // are billed at the prompt rate (they're a subset of prompt).
+            cached_pico_per_token: promptRate,
+        },
+    };
 };
 
 export { OpenAiHttpError };
