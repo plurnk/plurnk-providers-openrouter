@@ -44,6 +44,21 @@ Dynamic, resolved at `fromEnv` time from `${baseUrl}/models`. The provider holds
 
 If the model isn't in the catalog or `/models` errors, `fromEnv` throws — there is no hardcoded fallback.
 
+## tokenization
+
+Per-publisher dispatch, decided once at `fromEnv` from the model id's first segment and frozen on the instance:
+
+| Publisher prefix | Tokenizer |
+|---|---|
+| `openai/*` | `cl100k_base` (via [gpt-tokenizer](https://www.npmjs.com/package/gpt-tokenizer)) |
+| `anthropic/*` (and `~anthropic/*`) | `cl100k_base` (close approximation of Claude's actual BPE; no sync Claude tokenizer on npm) |
+| `x-ai/*` | `cl100k_base` (per xAI docs) |
+| `meta-llama/*` | `llama` (via [llama-tokenizer-js](https://www.npmjs.com/package/llama-tokenizer-js)) |
+| `mistralai/*`, `nousresearch/*` | `llama` (BPE family approximation) |
+| anything else | heuristic (~4 chars/token) |
+
+Open-weight Chinese/European publishers (qwen, deepseek, ibm-granite, gemma) currently fall through to the heuristic — per-family wiring (gpt2 BPE for qwen, sentencepiece for gemma) is pass-3 work.
+
 ## reasoning normalization
 
 OpenRouter surfaces chain-of-thought under several deltas (`reasoning_content`, `reasoning`, `thinking`, plus a `reasoning_details[]` array). The shared SSE accumulator coalesces the first three; the array form is captured under `chunkMetadata`. Free-form text emitted between plurnk ops is also scraped into `reasoning` per [PROVIDERS.md §3.3](https://github.com/plurnk/plurnk-service/blob/main/PROVIDERS.md).
