@@ -113,7 +113,7 @@ test("contextSize, model, baseUrl exposed on instance", () => {
         reasonBudget: 0,
         httpReferer: "",
         xTitle: "",
-        pricing: zeroPricing,
+        pricing: zeroPricing, tokenizer: "heuristic",
     });
     assert.equal(p.contextSize, 200000);
     assert.equal(p.model, "anthropic/claude-opus-latest");
@@ -124,13 +124,13 @@ test("baseUrl strips /v1 suffix", () => {
     const a = new OpenRouter({
         baseUrl: "https://openrouter.ai/api/v1",
         apiKey: "sk", model: "m", contextSize: 1, fetchTimeoutMs: 1, reasonBudget: 0,
-        httpReferer: "", xTitle: "", pricing: zeroPricing,
+        httpReferer: "", xTitle: "", pricing: zeroPricing, tokenizer: "heuristic",
     });
     assert.equal(a.baseUrl, "https://openrouter.ai/api");
     const b = new OpenRouter({
         baseUrl: "https://openrouter.ai/api/v1/",
         apiKey: "sk", model: "m", contextSize: 1, fetchTimeoutMs: 1, reasonBudget: 0,
-        httpReferer: "", xTitle: "", pricing: zeroPricing,
+        httpReferer: "", xTitle: "", pricing: zeroPricing, tokenizer: "heuristic",
     });
     assert.equal(b.baseUrl, "https://openrouter.ai/api");
 });
@@ -141,7 +141,7 @@ test("costFor: pico-per-token math from catalog rates", () => {
     const p = new OpenRouter({
         baseUrl: "https://openrouter.ai/api/v1",
         apiKey: "sk", model: "anthropic/claude-opus", contextSize: 1, fetchTimeoutMs: 1, reasonBudget: 0,
-        httpReferer: "", xTitle: "",
+        httpReferer: "", xTitle: "", tokenizer: "heuristic",
         pricing: { prompt_pico_per_token: 1.5e7, completion_pico_per_token: 7.5e7, cached_pico_per_token: 1.5e7 },
     });
     // 1000 prompt × 1.5e7 + 100 completion × 7.5e7 = 1.5e10 + 7.5e9 = 2.25e10 pico = $0.0225
@@ -152,16 +152,36 @@ test("costFor: returns 0 when rates are zero (free models)", () => {
     const p = new OpenRouter({
         baseUrl: "https://openrouter.ai/api/v1",
         apiKey: "sk", model: "free-model", contextSize: 1, fetchTimeoutMs: 1, reasonBudget: 0,
-        httpReferer: "", xTitle: "", pricing: zeroPricing,
+        httpReferer: "", xTitle: "", pricing: zeroPricing, tokenizer: "heuristic",
     });
     assert.equal(p.costFor({ prompt: 1000, completion: 500, cached: 0, total: 1500 }), 0);
+});
+
+test("tokenizer dispatch: anthropic/* → cl100k", () => {
+    const p = new OpenRouter({
+        baseUrl: "https://openrouter.ai/api/v1",
+        apiKey: "sk", model: "anthropic/claude-opus-latest", contextSize: 1, fetchTimeoutMs: 1, reasonBudget: 0,
+        httpReferer: "", xTitle: "", pricing: zeroPricing, tokenizer: "cl100k",
+    });
+    // cl100k canonical "hello world" → 2 tokens
+    assert.equal(p.countTokens("hello world"), 2);
+});
+
+test("tokenizer dispatch: meta-llama/* → llama", () => {
+    const p = new OpenRouter({
+        baseUrl: "https://openrouter.ai/api/v1",
+        apiKey: "sk", model: "meta-llama/llama-3.3-70b-instruct", contextSize: 1, fetchTimeoutMs: 1, reasonBudget: 0,
+        httpReferer: "", xTitle: "", pricing: zeroPricing, tokenizer: "llama",
+    });
+    // Llama BPE "hello world" → 3 tokens
+    assert.equal(p.countTokens("hello world"), 3);
 });
 
 test("countTokens: heuristic returns 0 for empty, ceil(len/4) otherwise", () => {
     const p = new OpenRouter({
         baseUrl: "https://openrouter.ai/api/v1",
         apiKey: "sk", model: "m", contextSize: 1, fetchTimeoutMs: 1, reasonBudget: 0,
-        httpReferer: "", xTitle: "", pricing: zeroPricing,
+        httpReferer: "", xTitle: "", pricing: zeroPricing, tokenizer: "heuristic",
     });
     assert.equal(p.countTokens(""), 0);
     assert.equal(p.countTokens("abcd"), 1);
