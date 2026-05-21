@@ -1,4 +1,40 @@
+import { encode as encodeCl100k } from "gpt-tokenizer/encoding/cl100k_base";
+import llamaTokenizer from "llama-tokenizer-js";
 import { chatCompletionStream, OpenAiHttpError } from "./openaiStream.ts";
+
+// Tokenizer dispatch driven by OpenRouter model-id prefix. OpenRouter relays
+// through dozens of upstream families; precision per route requires knowing
+// which tokenizer the upstream actually uses. This map covers the major
+// publishers; everything else falls through to the chars/4 heuristic.
+//
+// Prefixes match the first segment of OpenRouter's id (publisher), e.g.
+// "anthropic/claude-opus-latest" → "anthropic".
+type TokenizerKind = "cl100k" | "llama" | "heuristic";
+
+const TOKENIZER_BY_PUBLISHER: ReadonlyMap<string, TokenizerKind> = new Map([
+    // GPT-3.5/4 family — cl100k_base is canonical
+    ["openai", "cl100k"],
+    // Anthropic's actual tokenizer (Claude BPE) isn't on npm as a sync lib;
+    // cl100k_base is a documented close approximation (within ~5% in practice
+    // for English). Better than chars/4.
+    ["anthropic", "cl100k"],
+    ["~anthropic", "cl100k"],
+    // xAI Grok — documented cl100k_base
+    ["x-ai", "cl100k"],
+    // Llama-family — llama-tokenizer-js handles 1/2/3 accurately; mistral
+    // shares the BPE family closely enough
+    ["meta-llama", "llama"],
+    ["mistralai", "llama"],
+    ["nousresearch", "llama"],
+    // Open-weight Chinese / European models: heuristic for now (qwen uses
+    // gpt2 BPE; deepseek uses its own; gemma uses sentencepiece). Per-family
+    // wiring is pass-3.
+]);
+
+const tokenizerForModel = (model: string): TokenizerKind => {
+    const publisher = model.split("/")[0]!;
+    return TOKENIZER_BY_PUBLISHER.get(publisher) ?? "heuristic";
+};
 
 // OpenRouter's API root. There is no second location and no per-region split,
 // so this is a code constant rather than required env. `OPENROUTER_BASE_URL`
@@ -62,6 +98,9 @@ export type OpenRouterConfig = {
     xTitle: string;
     // Per-token pricing resolved from /v1/models at construction time.
     pricing: OpenRouterPricing;
+    // Tokenizer family resolved from the model's publisher prefix at
+    // fromEnv. Frozen on the instance.
+    tokenizer: TokenizerKind;
 };
 
 export default class OpenRouter {
@@ -74,6 +113,7 @@ export default class OpenRouter {
     #httpReferer: string;
     #xTitle: string;
     #pricing: OpenRouterPricing;
+    #tokenizer: TokenizerKind;
 
     constructor(config: OpenRouterConfig) {
         this.#baseUrl = config.baseUrl.replace(/\/v1\/?$/, "");
@@ -85,6 +125,7 @@ export default class OpenRouter {
         this.#httpReferer = config.httpReferer;
         this.#xTitle = config.xTitle;
         this.#pricing = config.pricing;
+        this.#tokenizer = config.tokenizer;
     }
 
     // PROVIDERS.md §3.7 factory contract. Async: resolves contextSize from
@@ -119,6 +160,7 @@ export default class OpenRouter {
             httpReferer: env.OPENROUTER_HTTP_REFERER ?? "",
             xTitle: env.OPENROUTER_X_TITLE ?? "",
             pricing: info.pricing,
+            tokenizer: tokenizerForModel(model),
         });
     }
 
@@ -127,14 +169,20 @@ export default class OpenRouter {
     get baseUrl(): string { return this.#baseUrl; }
     get pricing(): OpenRouterPricing { return this.#pricing; }
 
-    // Heuristic tokenizer. OpenRouter relays through dozens of upstreams with
-    // different tokenizer families (cl100k for OpenAI, Claude-bpe, sentencepiece
-    // for Gemini, llama-tokenizer for open-weight). Without a per-upstream
-    // tokenizer dispatch (pass-2 work), 4-chars-per-token is the universally
-    // approximate fallback.
+    // Per-publisher tokenizer dispatch. Decided once at construction from
+    // the model id's publisher prefix (resolved in OpenRouterConfig) and
+    // frozen on the instance. Unknown publishers fall back to the chars/4
+    // heuristic.
     countTokens(text: string): number {
-        return text.length === 0 ? 0 : Math.ceil(text.length / 4);
+        if (text.length === 0) return 0;
+        switch (this.#tokenizer) {
+            case "cl100k": return encodeCl100k(text).length;
+            case "llama":  return llamaTokenizer.encode(text).length;
+            case "heuristic": return Math.ceil(text.length / 4);
+        }
     }
+
+    get tokenizer(): TokenizerKind { return this.#tokenizer; }
 
     // Cost calculation from OpenRouter-reported per-token pricing.
     // cached portion is billed at prompt rate (OpenRouter's upstreams report
