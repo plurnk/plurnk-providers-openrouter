@@ -29,14 +29,16 @@ const result = await provider.generate({
 
 ## env
 
+No fallback defaults — required vars throw at `fromEnv` if missing or unparseable. Defaults belong in `plurnk-service`'s `.env.example` cascade, not in library code.
+
 | Variable | Required | Notes |
 |---|---|---|
 | `OPENROUTER_API_KEY`  | yes | Bearer token from openrouter.ai/keys |
 | `OPENROUTER_BASE_URL` | no | Override the API root. Default `https://openrouter.ai/api/v1` |
 | `OPENROUTER_HTTP_REFERER` | no | Sent as the `HTTP-Referer` ranking header |
 | `OPENROUTER_X_TITLE` | no | Sent as the `X-Title` ranking header |
-| `PLURNK_REASON` | no | Universal reasoning-token budget (PROVIDERS.md §3.8); `0` disables. OpenRouter relays reasoning via `include_reasoning: true` whenever the budget is positive. |
-| `PLURNK_PROVIDER_FETCH_TIMEOUT` | no | Universal fetch timeout in ms (PROVIDERS.md §3.9). Default `600000` (10m). |
+| `PLURNK_REASON` | yes | Universal reasoning-token budget (PROVIDERS.md §3.8); `0` disables. OpenRouter relays reasoning via `include_reasoning: true` whenever the budget is positive. |
+| `PLURNK_FETCH_TIMEOUT` | yes | Universal fetch timeout in ms (PROVIDERS.md §3.9) |
 
 ## context size
 

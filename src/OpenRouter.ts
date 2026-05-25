@@ -41,11 +41,6 @@ const tokenizerForModel = (model: string): TokenizerKind => {
 // remains an optional override for tunnels, proxies, or local replays.
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 
-// PROVIDERS.md §3.9 default — providers MAY pick lower if they know their
-// endpoint is fast, but openrouter relays through arbitrary upstreams that
-// can take many minutes for long Claude / DeepSeek completions.
-const DEFAULT_FETCH_TIMEOUT_MS = 600000;
-
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 export type ProviderUsage = {
@@ -140,9 +135,8 @@ export default class OpenRouter {
         const baseUrl = env.OPENROUTER_BASE_URL !== undefined && env.OPENROUTER_BASE_URL.length > 0
             ? env.OPENROUTER_BASE_URL
             : DEFAULT_BASE_URL;
-        const fetchTimeoutMs = env.PLURNK_PROVIDER_FETCH_TIMEOUT !== undefined && env.PLURNK_PROVIDER_FETCH_TIMEOUT.length > 0
-            ? Number(env.PLURNK_PROVIDER_FETCH_TIMEOUT)
-            : DEFAULT_FETCH_TIMEOUT_MS;
+        const fetchTimeoutMs = parseRequiredInt(env.PLURNK_FETCH_TIMEOUT, "PLURNK_FETCH_TIMEOUT");
+        const reasonBudget = parseRequiredInt(env.PLURNK_REASON, "PLURNK_REASON");
         const normalizedBase = baseUrl.replace(/\/v1\/?$/, "");
         const info = await fetchModelInfo({
             baseUrl: normalizedBase,
@@ -156,7 +150,7 @@ export default class OpenRouter {
             model,
             contextSize: info.contextSize,
             fetchTimeoutMs,
-            reasonBudget: Number(env.PLURNK_REASON ?? "0"),
+            reasonBudget,
             httpReferer: env.OPENROUTER_HTTP_REFERER ?? "",
             xTitle: env.OPENROUTER_X_TITLE ?? "",
             pricing: info.pricing,
@@ -233,6 +227,17 @@ export default class OpenRouter {
         };
     }
 }
+
+const parseRequiredInt = (raw: string | undefined, name: string): number => {
+    if (raw === undefined || raw.length === 0) {
+        throw new Error(`openrouter provider: ${name} must be set`);
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n)) {
+        throw new Error(`openrouter provider: ${name} must be a number (got "${raw}")`);
+    }
+    return n;
+};
 
 // OpenRouter's provider-pinning shorthand (e.g. `google/gemma-4-31b-it:nitro`)
 // routes the completion to a specific upstream. The `/models` catalog lists

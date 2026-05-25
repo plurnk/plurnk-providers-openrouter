@@ -2,10 +2,46 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import OpenRouter from "./OpenRouter.ts";
 
+// Minimum env that satisfies all required guards in fromEnv. Tests that need
+// to exercise one specific knob override its key on top of this.
+const baseEnv = Object.freeze({
+    OPENROUTER_API_KEY: "sk-test",
+    PLURNK_FETCH_TIMEOUT: "600000",
+    PLURNK_REASON: "0",
+});
+
 test("fromEnv: throws when OPENROUTER_API_KEY is unset", async () => {
     await assert.rejects(
         () => OpenRouter.fromEnv({}, "anthropic/claude-opus-latest"),
         /OPENROUTER_API_KEY must be set/,
+    );
+});
+
+test("fromEnv: throws when PLURNK_FETCH_TIMEOUT is unset", async () => {
+    await assert.rejects(
+        () => OpenRouter.fromEnv({ OPENROUTER_API_KEY: "sk-test", PLURNK_REASON: "0" }, "anthropic/claude-opus-latest"),
+        /PLURNK_FETCH_TIMEOUT must be set/,
+    );
+});
+
+test("fromEnv: throws when PLURNK_FETCH_TIMEOUT is non-numeric", async () => {
+    await assert.rejects(
+        () => OpenRouter.fromEnv({ ...baseEnv, PLURNK_FETCH_TIMEOUT: "abc" }, "anthropic/claude-opus-latest"),
+        /PLURNK_FETCH_TIMEOUT must be a number/,
+    );
+});
+
+test("fromEnv: throws when PLURNK_REASON is unset", async () => {
+    await assert.rejects(
+        () => OpenRouter.fromEnv({ OPENROUTER_API_KEY: "sk-test", PLURNK_FETCH_TIMEOUT: "600000" }, "anthropic/claude-opus-latest"),
+        /PLURNK_REASON must be set/,
+    );
+});
+
+test("fromEnv: throws when PLURNK_REASON is non-numeric", async () => {
+    await assert.rejects(
+        () => OpenRouter.fromEnv({ ...baseEnv, PLURNK_REASON: "lots" }, "anthropic/claude-opus-latest"),
+        /PLURNK_REASON must be a number/,
     );
 });
 
@@ -21,7 +57,7 @@ test("fromEnv: uses default base URL when OPENROUTER_BASE_URL unset", async (t) 
         };
     }) as typeof fetch;
 
-    const p = await OpenRouter.fromEnv({ OPENROUTER_API_KEY: "sk-test" }, "anthropic/claude-opus-latest");
+    const p = await OpenRouter.fromEnv({ ...baseEnv }, "anthropic/claude-opus-latest");
     assert.equal(p.contextSize, 200000);
     assert.equal(String(captured), "https://openrouter.ai/api/v1/models");
 });
@@ -35,8 +71,8 @@ test("fromEnv: resolves contextSize from /models catalog", async (t) => {
     })) as typeof fetch;
 
     const p = await OpenRouter.fromEnv({
+        ...baseEnv,
         OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
-        OPENROUTER_API_KEY: "sk-test",
     }, "anthropic/claude-opus-latest");
     assert.equal(p.contextSize, 200000);
     assert.equal(p.model, "anthropic/claude-opus-latest");
@@ -55,8 +91,8 @@ test("fromEnv: strips :provider routing suffix for catalog lookup", async (t) =>
     }) as typeof fetch;
 
     const p = await OpenRouter.fromEnv({
+        ...baseEnv,
         OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
-        OPENROUTER_API_KEY: "sk-test",
     }, "google/gemma-4-31b-it:nitro");
     assert.equal(p.contextSize, 131072);
     // Model identity is preserved including the routing hint; only the
@@ -76,8 +112,8 @@ test("fromEnv: throws when model is missing from catalog", async (t) => {
 
     await assert.rejects(
         () => OpenRouter.fromEnv({
+            ...baseEnv,
             OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
-            OPENROUTER_API_KEY: "sk-test",
         }, "anthropic/claude-opus-latest"),
         /has no entry for "anthropic\/claude-opus-latest"/,
     );
@@ -94,8 +130,8 @@ test("fromEnv: throws when /models returns non-2xx", async (t) => {
 
     await assert.rejects(
         () => OpenRouter.fromEnv({
+            ...baseEnv,
             OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
-            OPENROUTER_API_KEY: "sk-test",
         }, "anthropic/claude-opus-latest"),
         /\/models returned 503/,
     );
