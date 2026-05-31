@@ -73,13 +73,20 @@ test("costFor: pico-per-token math from catalog rates", async () => {
     mockCatalog(opus); // $15/M prompt → 1.5e7 pico/tok; $75/M completion → 7.5e7 pico/tok
     const p = await OpenRouter.fromEnv({ ...baseEnv }, "anthropic/claude-opus-latest");
     // 1000×1.5e7 + 100×7.5e7 = 2.25e10
-    assert.equal(p.costFor({ prompt: 1000, completion: 100, cached: 0, total: 1100 }), 22500000000);
+    assert.equal(p.costFor({ prompt: 1000, completion: 100, reasoning: 0, cached: 0, total: 1100 }), 22500000000);
+});
+
+test("costFor: bills reasoning at the completion rate", async () => {
+    mockCatalog(opus); // completion → 7.5e7 pico/tok
+    const p = await OpenRouter.fromEnv({ ...baseEnv }, "anthropic/claude-opus-latest");
+    // (completion 100 + reasoning 100) × 7.5e7 = 1.5e10
+    assert.equal(p.costFor({ prompt: 0, completion: 100, reasoning: 100, cached: 0, total: 200 }), 15000000000);
 });
 
 test("costFor: returns 0 for a free model (no rates)", async () => {
     mockCatalog({ id: "free/model", context_length: 8192 });
     const p = await OpenRouter.fromEnv({ ...baseEnv }, "free/model");
-    assert.equal(p.costFor({ prompt: 1000, completion: 500, cached: 0, total: 1500 }), 0);
+    assert.equal(p.costFor({ prompt: 1000, completion: 500, reasoning: 0, cached: 0, total: 1500 }), 0);
 });
 
 test("tokenizer dispatch: anthropic/* → cl100k (hello world = 2)", async () => {

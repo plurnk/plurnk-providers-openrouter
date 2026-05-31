@@ -5,12 +5,12 @@
 
 import {
     OpenAICompatProvider,
+    computeCost,
     parseRequiredInt,
     requireEnv,
     tokenizerByPublisher,
     tokenizerFor,
     type Provider,
-    type ProviderUsage,
     type TokenizerFamily,
 } from "@plurnk/plurnk-providers";
 
@@ -57,9 +57,8 @@ export default class OpenRouter {
             reasonBudget,
             reasoningStyle: "include_reasoning",
             countTokens: tokenizerFor(family),
-            // cached tokens are a subset of prompt, billed at the prompt rate.
-            costFor: (usage: ProviderUsage) =>
-                Math.round(usage.prompt * pricing.prompt + usage.completion * pricing.completion),
+            // OpenRouter has no separate cached rate — cached bills at the prompt rate.
+            costFor: (usage) => computeCost(usage, { input: pricing.prompt, output: pricing.completion, cached: pricing.prompt }),
         });
     }
 }
