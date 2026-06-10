@@ -7,6 +7,7 @@ import {
     OpenAICompatProvider,
     computeCost,
     parseRequiredInt,
+    providerSource,
     requireEnv,
     tokenizerByPublisher,
     tokenizerFor,
@@ -59,6 +60,7 @@ export default class OpenRouter {
             countTokens: tokenizerFor(family),
             // OpenRouter has no separate cached rate — cached bills at the prompt rate.
             costFor: (usage) => computeCost(usage, { input: pricing.prompt, output: pricing.completion, cached: pricing.prompt }),
+            source: providerSource("openrouter"),
         });
     }
 }
