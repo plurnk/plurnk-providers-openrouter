@@ -7,6 +7,8 @@ const baseEnv = Object.freeze({
     OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
     PLURNK_FETCH_TIMEOUT: "600000",
     PLURNK_REASON: "0",
+    PLURNK_PROVIDERS_THINKING: "0",
+    PLURNK_PROVIDERS_REASONING: "1",
 });
 
 // Mock the /models catalog probe. `entry` becomes the single catalog row.
@@ -59,7 +61,7 @@ test("generate failure carries the provider:openrouter telemetry source (SPEC §
 
 test("fromEnv: resolves contextSize from /models and defaults the base URL", async () => {
     const calls = mockCatalog(opus);
-    const p = await OpenRouter.fromEnv({ OPENROUTER_API_KEY: "sk-test", PLURNK_FETCH_TIMEOUT: "600000", PLURNK_REASON: "0" }, "anthropic/claude-opus-latest");
+    const p = await OpenRouter.fromEnv({ ...baseEnv, OPENROUTER_BASE_URL: "" }, "anthropic/claude-opus-latest");
     assert.equal(p.contextSize, 200000);
     assert.equal(p.model, "anthropic/claude-opus-latest");
     assert.equal(calls[0], "https://openrouter.ai/api/v1/models");
