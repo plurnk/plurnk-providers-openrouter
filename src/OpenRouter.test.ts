@@ -6,7 +6,7 @@ const baseEnv = Object.freeze({
     OPENROUTER_API_KEY: "sk-test",
     OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
     PLURNK_FETCH_TIMEOUT: "600000",
-    PLURNK_REASON: "0",
+    PLURNK_PROVIDERS_REASON_LEVEL: "0",
     PLURNK_PROVIDERS_REASONING: "1",
 });
 
@@ -31,14 +31,14 @@ test("fromEnv: throws when OPENROUTER_API_KEY is unset", async () => {
 
 test("fromEnv: throws when PLURNK_FETCH_TIMEOUT is unset", async () => {
     await assert.rejects(
-        () => OpenRouter.fromEnv({ OPENROUTER_API_KEY: "sk-test", PLURNK_REASON: "0" }, "m"),
+        () => OpenRouter.fromEnv({ OPENROUTER_API_KEY: "sk-test", PLURNK_PROVIDERS_REASON_LEVEL: "0" }, "m"),
         /PLURNK_FETCH_TIMEOUT must be set/,
     );
 });
 
-test("fromEnv: throws when PLURNK_REASON is non-numeric", async () => {
+test("fromEnv: throws when PLURNK_PROVIDERS_REASON_LEVEL is non-numeric", async () => {
     mockCatalog(opus);
-    await assert.rejects(() => OpenRouter.fromEnv({ ...baseEnv, PLURNK_REASON: "lots" }, "m"), /PLURNK_REASON must be a non-negative integer/);
+    await assert.rejects(() => OpenRouter.fromEnv({ ...baseEnv, PLURNK_PROVIDERS_REASON_LEVEL: "lots" }, "m"), /PLURNK_PROVIDERS_REASON_LEVEL must be a non-negative integer/);
 });
 
 test("generate failure carries the provider:openrouter telemetry source (SPEC §12)", async () => {

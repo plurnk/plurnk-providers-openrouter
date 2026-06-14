@@ -36,7 +36,7 @@ export default class OpenRouter {
     static async fromEnv(env: NodeJS.ProcessEnv, model: string): Promise<Provider> {
         const apiKey = requireEnv(env.OPENROUTER_API_KEY, "OPENROUTER_API_KEY", "openrouter");
         const fetchTimeoutMs = parseRequiredInt(env.PLURNK_FETCH_TIMEOUT, "PLURNK_FETCH_TIMEOUT", "openrouter");
-        const reasonBudget = parseRequiredInt(env.PLURNK_REASON, "PLURNK_REASON", "openrouter");
+        const reasonBudget = parseRequiredInt(env.PLURNK_PROVIDERS_REASON_LEVEL, "PLURNK_PROVIDERS_REASON_LEVEL", "openrouter");
         const rawBase = env.OPENROUTER_BASE_URL !== undefined && env.OPENROUTER_BASE_URL.length > 0
             ? env.OPENROUTER_BASE_URL
             : DEFAULT_BASE_URL;
