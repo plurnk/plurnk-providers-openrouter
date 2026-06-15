@@ -8,7 +8,6 @@ import {
     computeCost,
     parseRequiredInt,
     reasoningBudgetFromEnv,
-    planFromEnv,
     providerSource,
     requireEnv,
     tokenizerByPublisher,
@@ -63,7 +62,6 @@ export default class OpenRouter {
             // OpenRouter has no separate cached rate — cached bills at the prompt rate.
             costFor: (usage) => computeCost(usage, { input: pricing.prompt, output: pricing.completion, cached: pricing.prompt }),
             source: providerSource("openrouter"),
-            plan: planFromEnv(env, "openrouter"),
         });
     }
 }
