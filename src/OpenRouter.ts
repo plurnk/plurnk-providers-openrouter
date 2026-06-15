@@ -7,7 +7,7 @@ import {
     OpenAICompatProvider,
     computeCost,
     parseRequiredInt,
-    reasoningKnobsFromEnv,
+    reasoningBudgetFromEnv,
     providerSource,
     requireEnv,
     tokenizerByPublisher,
@@ -36,7 +36,7 @@ export default class OpenRouter {
     static async fromEnv(env: NodeJS.ProcessEnv, model: string): Promise<Provider> {
         const apiKey = requireEnv(env.OPENROUTER_API_KEY, "OPENROUTER_API_KEY", "openrouter");
         const fetchTimeoutMs = parseRequiredInt(env.PLURNK_FETCH_TIMEOUT, "PLURNK_FETCH_TIMEOUT", "openrouter");
-        const reasonBudget = parseRequiredInt(env.PLURNK_PROVIDERS_REASON_LEVEL, "PLURNK_PROVIDERS_REASON_LEVEL", "openrouter");
+        const reasoningBudget = reasoningBudgetFromEnv(env, "openrouter");
         const rawBase = env.OPENROUTER_BASE_URL !== undefined && env.OPENROUTER_BASE_URL.length > 0
             ? env.OPENROUTER_BASE_URL
             : DEFAULT_BASE_URL;
@@ -56,13 +56,12 @@ export default class OpenRouter {
             fetchTimeoutMs,
             headers,
             contextSize,
-            reasonBudget,
+            reasoningBudget,
             reasoningStyle: "include_reasoning",
             countTokens: tokenizerFor(family),
             // OpenRouter has no separate cached rate — cached bills at the prompt rate.
             costFor: (usage) => computeCost(usage, { input: pricing.prompt, output: pricing.completion, cached: pricing.prompt }),
             source: providerSource("openrouter"),
-            ...reasoningKnobsFromEnv(env, "openrouter"),
         });
     }
 }
