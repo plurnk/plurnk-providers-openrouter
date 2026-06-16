@@ -57,6 +57,7 @@ export default class OpenRouter {
             headers,
             contextSize,
             reasoningBudget,
+            retryAttempts: parseRequiredInt(env.PLURNK_PROVIDER_RETRY_ATTEMPTS, "PLURNK_PROVIDER_RETRY_ATTEMPTS", "openrouter"),
             reasoningStyle: "include_reasoning",
             countTokens: tokenizerFor(family),
             // OpenRouter has no separate cached rate — cached bills at the prompt rate.
