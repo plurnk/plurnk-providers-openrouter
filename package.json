@@ -1,6 +1,6 @@
 {
     "name": "@plurnk/plurnk-providers-openrouter",
-    "version": "0.7.0",
+    "version": "0.8.0",
     "description": "OpenRouter provider for plurnk-service. Routes openrouter/{publisher}/{model} aliases through OpenRouter's OpenAI-compatible chat-completions relay, with dynamic context-size resolution from /models and ranking-header passthrough.",
     "type": "module",
     "license": "MIT",
@@ -37,6 +37,6 @@
         "typescript": "^6.0.3"
     },
     "peerDependencies": {
-        "@plurnk/plurnk-providers": "0.7.x"
+        "@plurnk/plurnk-providers": ">=0.7.0 <1.0.0"
     }
 }
