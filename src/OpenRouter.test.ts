@@ -5,7 +5,7 @@ import OpenRouter from "./OpenRouter.ts";
 const baseEnv = Object.freeze({
     OPENROUTER_API_KEY: "sk-test",
     OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
-    PLURNK_FETCH_TIMEOUT: "600000",
+    PLURNK_PROVIDERS_FETCH_TIMEOUT: "600000",
     PLURNK_PROVIDERS_REASONING_BUDGET: "0",
     PLURNK_PROVIDERS_RETRY_ATTEMPTS: "0",
 });
@@ -29,10 +29,10 @@ test("fromEnv: throws when OPENROUTER_API_KEY is unset", async () => {
     await assert.rejects(() => OpenRouter.fromEnv({}, "anthropic/claude-opus-latest"), /OPENROUTER_API_KEY must be set/);
 });
 
-test("fromEnv: throws when PLURNK_FETCH_TIMEOUT is unset", async () => {
+test("fromEnv: throws when PLURNK_PROVIDERS_FETCH_TIMEOUT is unset", async () => {
     await assert.rejects(
         () => OpenRouter.fromEnv({ OPENROUTER_API_KEY: "sk-test", PLURNK_PROVIDERS_REASONING_BUDGET: "0" }, "m"),
-        /PLURNK_FETCH_TIMEOUT must be set/,
+        /PLURNK_PROVIDERS_FETCH_TIMEOUT must be set/,
     );
 });
 

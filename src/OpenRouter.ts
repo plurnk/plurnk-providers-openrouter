@@ -35,7 +35,7 @@ const TOKENIZER_BY_PUBLISHER: ReadonlyMap<string, TokenizerFamily> = new Map([
 export default class OpenRouter {
     static async fromEnv(env: NodeJS.ProcessEnv, model: string): Promise<Provider> {
         const apiKey = requireEnv(env.OPENROUTER_API_KEY, "OPENROUTER_API_KEY", "openrouter");
-        const fetchTimeoutMs = parseRequiredInt(env.PLURNK_FETCH_TIMEOUT, "PLURNK_FETCH_TIMEOUT", "openrouter");
+        const fetchTimeoutMs = parseRequiredInt(env.PLURNK_PROVIDERS_FETCH_TIMEOUT, "PLURNK_PROVIDERS_FETCH_TIMEOUT", "openrouter");
         const reasoningBudget = reasoningBudgetFromEnv(env, "openrouter");
         const rawBase = env.OPENROUTER_BASE_URL !== undefined && env.OPENROUTER_BASE_URL.length > 0
             ? env.OPENROUTER_BASE_URL
