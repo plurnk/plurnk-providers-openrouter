@@ -7,7 +7,7 @@ const baseEnv = Object.freeze({
     OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
     PLURNK_FETCH_TIMEOUT: "600000",
     PLURNK_PROVIDERS_REASONING_BUDGET: "0",
-    PLURNK_PROVIDER_RETRY_ATTEMPTS: "0",
+    PLURNK_PROVIDERS_RETRY_ATTEMPTS: "0",
 });
 
 // Mock the /models catalog probe. `entry` becomes the single catalog row.

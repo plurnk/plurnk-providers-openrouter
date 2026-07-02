@@ -39,7 +39,7 @@ No fallback defaults — required vars throw at `fromEnv` if missing or unparsea
 | `OPENROUTER_X_TITLE` | no | Sent as the `X-Title` ranking header |
 | `PLURNK_PROVIDERS_REASONING_BUDGET` | yes | Universal reasoning-token budget (SPEC §4); `0` disables. OpenRouter relays reasoning via `include_reasoning: true` whenever the budget is positive. |
 | `PLURNK_FETCH_TIMEOUT` | yes | Universal fetch timeout in ms (SPEC §4) |
-| `PLURNK_PROVIDER_RETRY_ATTEMPTS` | yes | Transient-failure retry budget (SPEC §4): `0` disables; `N` retries on 429/5xx/timeout/network with exponential backoff, honoring `Retry-After`. |
+| `PLURNK_PROVIDERS_RETRY_ATTEMPTS` | yes | Transient-failure retry budget (SPEC §4): `0` disables; `N` retries on 429/5xx/timeout/network with exponential backoff, honoring `Retry-After`. |
 
 ## context size
 
