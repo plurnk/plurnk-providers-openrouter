@@ -6,7 +6,7 @@ const baseEnv = Object.freeze({
     OPENROUTER_API_KEY: "sk-test",
     OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
     PLURNK_PROVIDERS_FETCH_TIMEOUT: "600000",
-    PLURNK_PROVIDERS_REASONING_BUDGET: "0",
+    PLURNK_PROVIDERS_THINKING: "off",
     PLURNK_PROVIDERS_RETRY_ATTEMPTS: "0",
 });
 
@@ -31,14 +31,14 @@ test("fromEnv: throws when OPENROUTER_API_KEY is unset", async () => {
 
 test("fromEnv: throws when PLURNK_PROVIDERS_FETCH_TIMEOUT is unset", async () => {
     await assert.rejects(
-        () => OpenRouter.fromEnv({ OPENROUTER_API_KEY: "sk-test", PLURNK_PROVIDERS_REASONING_BUDGET: "0" }, "m"),
+        () => OpenRouter.fromEnv({ OPENROUTER_API_KEY: "sk-test", PLURNK_PROVIDERS_THINKING: "off" }, "m"),
         /PLURNK_PROVIDERS_FETCH_TIMEOUT must be set/,
     );
 });
 
-test("fromEnv: throws when PLURNK_PROVIDERS_REASONING_BUDGET is non-numeric", async () => {
+test("fromEnv: throws when PLURNK_PROVIDERS_THINKING is not a valid mode", async () => {
     mockCatalog(opus);
-    await assert.rejects(() => OpenRouter.fromEnv({ ...baseEnv, PLURNK_PROVIDERS_REASONING_BUDGET: "lots" }, "m"), /PLURNK_PROVIDERS_REASONING_BUDGET must be an integer >= -1/);
+    await assert.rejects(() => OpenRouter.fromEnv({ ...baseEnv, PLURNK_PROVIDERS_THINKING: "8192" }, "m"), /PLURNK_PROVIDERS_THINKING must be one of/);
 });
 
 test("generate failure carries the provider:openrouter telemetry source (SPEC §12)", async () => {
@@ -105,21 +105,3 @@ test("costFor: returns 0 for a free model (no rates)", async () => {
     assert.equal(p.costFor({ prompt: 1000, completion: 500, reasoning: 0, cached: 0, total: 1500 }), 0);
 });
 
-test("tokenizer dispatch: anthropic/* → cl100k (hello world = 2)", async () => {
-    mockCatalog(opus);
-    const p = await OpenRouter.fromEnv({ ...baseEnv }, "anthropic/claude-opus-latest");
-    assert.equal(p.countTokens("hello world"), 2);
-});
-
-test("tokenizer dispatch: meta-llama/* → llama (hello world = 3)", async () => {
-    mockCatalog({ id: "meta-llama/llama-3.3-70b-instruct", context_length: 131072 });
-    const p = await OpenRouter.fromEnv({ ...baseEnv }, "meta-llama/llama-3.3-70b-instruct");
-    assert.equal(p.countTokens("hello world"), 3);
-});
-
-test("tokenizer dispatch: unknown publisher → heuristic", async () => {
-    mockCatalog({ id: "obscure/model", context_length: 4096 });
-    const p = await OpenRouter.fromEnv({ ...baseEnv }, "obscure/model");
-    assert.equal(p.countTokens(""), 0);
-    assert.equal(p.countTokens("abcde"), 2); // ceil(5/4)
-});

@@ -7,13 +7,10 @@ import {
     OpenAICompatProvider,
     computeCost,
     parseRequiredInt,
-    reasoningBudgetFromEnv,
+    thinkingFromEnv,
     providerSource,
     requireEnv,
-    tokenizerByPublisher,
-    tokenizerFor,
     type Provider,
-    type TokenizerFamily,
 } from "@plurnk/plurnk-providers";
 
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
@@ -22,21 +19,11 @@ const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 // "anthropic/claude-opus" → "anthropic"). Unlisted publishers fall through to
 // the chars/4 heuristic. cl100k_base is a documented close approximation for
 // the anthropic/x-ai families; llama-tokenizer covers the BPE-family models.
-const TOKENIZER_BY_PUBLISHER: ReadonlyMap<string, TokenizerFamily> = new Map([
-    ["openai", "cl100k"],
-    ["anthropic", "cl100k"],
-    ["~anthropic", "cl100k"],
-    ["x-ai", "cl100k"],
-    ["meta-llama", "llama"],
-    ["mistralai", "llama"],
-    ["nousresearch", "llama"],
-]);
-
 export default class OpenRouter {
     static async fromEnv(env: NodeJS.ProcessEnv, model: string): Promise<Provider> {
         const apiKey = requireEnv(env.OPENROUTER_API_KEY, "OPENROUTER_API_KEY", "openrouter");
         const fetchTimeoutMs = parseRequiredInt(env.PLURNK_PROVIDERS_FETCH_TIMEOUT, "PLURNK_PROVIDERS_FETCH_TIMEOUT", "openrouter");
-        const reasoningBudget = reasoningBudgetFromEnv(env, "openrouter");
+        const thinking = thinkingFromEnv(env, "openrouter");
         const rawBase = env.OPENROUTER_BASE_URL !== undefined && env.OPENROUTER_BASE_URL.length > 0
             ? env.OPENROUTER_BASE_URL
             : DEFAULT_BASE_URL;
@@ -48,18 +35,15 @@ export default class OpenRouter {
         if (env.OPENROUTER_HTTP_REFERER) headers["HTTP-Referer"] = env.OPENROUTER_HTTP_REFERER;
         if (env.OPENROUTER_X_TITLE) headers["X-Title"] = env.OPENROUTER_X_TITLE;
 
-        const family = tokenizerByPublisher(model, TOKENIZER_BY_PUBLISHER);
-
         return new OpenAICompatProvider({
             model,
             url: `${base}/v1/chat/completions`,
             fetchTimeoutMs,
             headers,
             contextSize,
-            reasoningBudget,
+            thinking,
             retryAttempts: parseRequiredInt(env.PLURNK_PROVIDERS_RETRY_ATTEMPTS, "PLURNK_PROVIDERS_RETRY_ATTEMPTS", "openrouter"),
             reasoningStyle: "include_reasoning",
-            countTokens: tokenizerFor(family),
             // OpenRouter has no separate cached rate — cached bills at the prompt rate.
             costFor: (usage) => computeCost(usage, { input: pricing.prompt, output: pricing.completion, cached: pricing.prompt }),
             source: providerSource("openrouter"),
