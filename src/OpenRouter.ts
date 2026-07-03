@@ -8,6 +8,7 @@ import {
     computeCost,
     parseRequiredInt,
     thinkingFromEnv,
+    parseRequiredFloat,
     providerSource,
     requireEnv,
     type Provider,
@@ -42,6 +43,8 @@ export default class OpenRouter {
             headers,
             contextSize,
             thinking,
+            grammarTemperature: parseRequiredFloat(env.PLURNK_PROVIDERS_GRAMMAR_TEMPERATURE, "PLURNK_PROVIDERS_GRAMMAR_TEMPERATURE", "openrouter", 0),
+            grammarRepeatPenalty: parseRequiredFloat(env.PLURNK_PROVIDERS_GRAMMAR_REPEAT_PENALTY, "PLURNK_PROVIDERS_GRAMMAR_REPEAT_PENALTY", "openrouter", 0),
             retryAttempts: parseRequiredInt(env.PLURNK_PROVIDERS_RETRY_ATTEMPTS, "PLURNK_PROVIDERS_RETRY_ATTEMPTS", "openrouter"),
             reasoningStyle: "include_reasoning",
             // OpenRouter has no separate cached rate — cached bills at the prompt rate.
