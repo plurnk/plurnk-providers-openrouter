@@ -8,6 +8,7 @@ import {
     computeCost,
     parseRequiredInt,
     thinkingFromEnv,
+    dataCaptureFromEnv,
     parseRequiredFloat,
     providerSource,
     requireEnv,
@@ -47,6 +48,8 @@ export default class OpenRouter {
             repeatPenalty: parseRequiredFloat(env.PLURNK_PROVIDERS_REPEAT_PENALTY, "PLURNK_PROVIDERS_REPEAT_PENALTY", "openrouter", 0),
             retryDelayMs: parseRequiredInt(env.PLURNK_PROVIDERS_RETRY_DELAY, "PLURNK_PROVIDERS_RETRY_DELAY", "openrouter"),
             retryAttempts: parseRequiredInt(env.PLURNK_PROVIDERS_RETRY_ATTEMPTS, "PLURNK_PROVIDERS_RETRY_ATTEMPTS", "openrouter"),
+            // Opt-in data capture (#36), off by default, per-alias-scopable.
+            ...dataCaptureFromEnv(env, "openrouter"),
             reasoningStyle: "include_reasoning",
             // OpenRouter has no separate cached rate — cached bills at the prompt rate.
             costFor: (usage) => computeCost(usage, { input: pricing.prompt, output: pricing.completion, cached: pricing.prompt }),
