@@ -7,7 +7,7 @@ import {
     OpenAICompatProvider,
     computeCost,
     parseRequiredInt,
-    thinkingFromEnv,
+    reasoningFromEnv,
     dataCaptureFromEnv,
     parseRequiredFloat,
     providerSource,
@@ -25,7 +25,7 @@ export default class OpenRouter {
     static async fromEnv(env: NodeJS.ProcessEnv, model: string): Promise<Provider> {
         const apiKey = requireEnv(env.OPENROUTER_API_KEY, "OPENROUTER_API_KEY", "openrouter");
         const fetchTimeoutMs = parseRequiredInt(env.PLURNK_PROVIDERS_FETCH_TIMEOUT, "PLURNK_PROVIDERS_FETCH_TIMEOUT", "openrouter");
-        const thinking = thinkingFromEnv(env, "openrouter");
+        const reasoning = reasoningFromEnv(env, "openrouter");
         const rawBase = env.OPENROUTER_BASE_URL !== undefined && env.OPENROUTER_BASE_URL.length > 0
             ? env.OPENROUTER_BASE_URL
             : DEFAULT_BASE_URL;
@@ -43,9 +43,10 @@ export default class OpenRouter {
             fetchTimeoutMs,
             headers,
             contextSize,
-            thinking,
+            reasoning,
             temperature: parseRequiredFloat(env.PLURNK_PROVIDERS_TEMPERATURE, "PLURNK_PROVIDERS_TEMPERATURE", "openrouter", 0),
             repeatPenalty: parseRequiredFloat(env.PLURNK_PROVIDERS_REPEAT_PENALTY, "PLURNK_PROVIDERS_REPEAT_PENALTY", "openrouter", 0),
+            frequencyPenalty: parseRequiredFloat(env.PLURNK_PROVIDERS_FREQUENCY_PENALTY, "PLURNK_PROVIDERS_FREQUENCY_PENALTY", "openrouter", 0),
             retryDelayMs: parseRequiredInt(env.PLURNK_PROVIDERS_RETRY_DELAY, "PLURNK_PROVIDERS_RETRY_DELAY", "openrouter"),
             retryAttempts: parseRequiredInt(env.PLURNK_PROVIDERS_RETRY_ATTEMPTS, "PLURNK_PROVIDERS_RETRY_ATTEMPTS", "openrouter"),
             // Opt-in data capture (#36), off by default, per-alias-scopable.

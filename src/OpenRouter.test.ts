@@ -6,7 +6,7 @@ const baseEnv = Object.freeze({
     OPENROUTER_API_KEY: "sk-test",
     OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
     PLURNK_PROVIDERS_FETCH_TIMEOUT: "600000",
-    PLURNK_PROVIDERS_THINKING: "off", PLURNK_PROVIDERS_TEMPERATURE: "0.2", PLURNK_PROVIDERS_REPEAT_PENALTY: "1.15", PLURNK_PROVIDERS_RETRY_DELAY: "1", PLURNK_PROVIDERS_PROBE_ATTEMPTS: "3", PLURNK_PROVIDERS_PROBE_DELAY: "1",
+    PLURNK_PROVIDERS_REASONING: "off", PLURNK_PROVIDERS_TEMPERATURE: "0.2", PLURNK_PROVIDERS_REPEAT_PENALTY: "1.15", PLURNK_PROVIDERS_FREQUENCY_PENALTY: "0.4", PLURNK_PROVIDERS_RETRY_DELAY: "1", PLURNK_PROVIDERS_PROBE_ATTEMPTS: "3", PLURNK_PROVIDERS_PROBE_DELAY: "1",
     PLURNK_PROVIDERS_RETRY_ATTEMPTS: "0",
 });
 
@@ -31,14 +31,14 @@ test("fromEnv: throws when OPENROUTER_API_KEY is unset", async () => {
 
 test("fromEnv: throws when PLURNK_PROVIDERS_FETCH_TIMEOUT is unset", async () => {
     await assert.rejects(
-        () => OpenRouter.fromEnv({ OPENROUTER_API_KEY: "sk-test", PLURNK_PROVIDERS_THINKING: "off" }, "m"),
+        () => OpenRouter.fromEnv({ OPENROUTER_API_KEY: "sk-test", PLURNK_PROVIDERS_REASONING: "off" }, "m"),
         /PLURNK_PROVIDERS_FETCH_TIMEOUT must be set/,
     );
 });
 
-test("fromEnv: throws when PLURNK_PROVIDERS_THINKING is not a valid mode", async () => {
+test("fromEnv: throws when PLURNK_PROVIDERS_REASONING is not a valid mode", async () => {
     mockCatalog(opus);
-    await assert.rejects(() => OpenRouter.fromEnv({ ...baseEnv, PLURNK_PROVIDERS_THINKING: "8192" }, "m"), /PLURNK_PROVIDERS_THINKING must be one of/);
+    await assert.rejects(() => OpenRouter.fromEnv({ ...baseEnv, PLURNK_PROVIDERS_REASONING: "8192" }, "m"), /PLURNK_PROVIDERS_REASONING must be one of/);
 });
 
 test("generate failure carries the provider:openrouter telemetry source (SPEC §12)", async () => {
