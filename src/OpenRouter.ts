@@ -31,7 +31,7 @@ export default class OpenRouter {
             : DEFAULT_BASE_URL;
         const base = rawBase.replace(/\/v1\/?$/, "");
 
-        const { contextSize, pricing } = await fetchModelInfo({ base, apiKey, model, fetchTimeoutMs });
+        const { contextWindow, pricing } = await fetchModelInfo({ base, apiKey, model, fetchTimeoutMs });
 
         const headers: Record<string, string> = { Authorization: `Bearer ${apiKey}` };
         if (env.OPENROUTER_HTTP_REFERER) headers["HTTP-Referer"] = env.OPENROUTER_HTTP_REFERER;
@@ -42,7 +42,7 @@ export default class OpenRouter {
             url: `${base}/v1/chat/completions`,
             fetchTimeoutMs,
             headers,
-            contextSize,
+            contextWindow,
             reasoning,
             temperature: parseRequiredFloat(env.PLURNK_PROVIDERS_TEMPERATURE, "PLURNK_PROVIDERS_TEMPERATURE", "openrouter", 0),
             repeatPenalty: parseRequiredFloat(env.PLURNK_PROVIDERS_REPEAT_PENALTY, "PLURNK_PROVIDERS_REPEAT_PENALTY", "openrouter", 0),
@@ -77,7 +77,7 @@ type CatalogResponse = { data?: CatalogEntry[] };
 
 const fetchModelInfo = async ({
     base, apiKey, model, fetchTimeoutMs,
-}: { base: string; apiKey: string; model: string; fetchTimeoutMs: number }): Promise<{ contextSize: number; pricing: Pricing }> => {
+}: { base: string; apiKey: string; model: string; fetchTimeoutMs: number }): Promise<{ contextWindow: number; pricing: Pricing }> => {
     const res = await fetch(`${base}/v1/models`, {
         headers: { Authorization: `Bearer ${apiKey}` },
         signal: AbortSignal.timeout(fetchTimeoutMs),
@@ -94,7 +94,7 @@ const fetchModelInfo = async ({
         throw new Error(`OpenRouter /models has no context_length for "${lookupId}"`);
     }
     return {
-        contextSize: entry.context_length,
+        contextWindow: entry.context_length,
         pricing: { prompt: parsePicoRate(entry.pricing?.prompt), completion: parsePicoRate(entry.pricing?.completion) },
     };
 };

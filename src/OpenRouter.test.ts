@@ -58,10 +58,10 @@ test("generate failure carries the provider:openrouter telemetry source (SPEC §
 
 // — catalog probe —
 
-test("fromEnv: resolves contextSize from /models and defaults the base URL", async () => {
+test("fromEnv: resolves contextWindow from /models and defaults the base URL", async () => {
     const calls = mockCatalog(opus);
     const p = await OpenRouter.fromEnv({ ...baseEnv, OPENROUTER_BASE_URL: "" }, "anthropic/claude-opus-latest");
-    assert.equal(p.contextSize, 200000);
+    assert.equal(p.contextWindow, 200000);
     assert.equal(p.model, "anthropic/claude-opus-latest");
     assert.equal(calls[0], "https://openrouter.ai/api/v1/models");
 });
@@ -69,7 +69,7 @@ test("fromEnv: resolves contextSize from /models and defaults the base URL", asy
 test("fromEnv: strips :provider routing suffix for catalog lookup but keeps it as model id", async () => {
     mockCatalog({ id: "google/gemma-4-31b-it", context_length: 131072 });
     const p = await OpenRouter.fromEnv({ ...baseEnv }, "google/gemma-4-31b-it:nitro");
-    assert.equal(p.contextSize, 131072);
+    assert.equal(p.contextWindow, 131072);
     assert.equal(p.model, "google/gemma-4-31b-it:nitro");
 });
 
