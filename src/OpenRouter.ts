@@ -13,6 +13,7 @@ import {
     providerSource,
     requireEnv,
     type Provider,
+    envelopeFromEnv,
 } from "@plurnk/plurnk-providers";
 
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
@@ -47,6 +48,8 @@ export default class OpenRouter {
             temperature: parseRequiredFloat(env.PLURNK_PROVIDERS_TEMPERATURE, "PLURNK_PROVIDERS_TEMPERATURE", "openrouter", 0),
             repeatPenalty: parseRequiredFloat(env.PLURNK_PROVIDERS_REPEAT_PENALTY, "PLURNK_PROVIDERS_REPEAT_PENALTY", "openrouter", 0),
             frequencyPenalty: parseRequiredFloat(env.PLURNK_PROVIDERS_FREQUENCY_PENALTY, "PLURNK_PROVIDERS_FREQUENCY_PENALTY", "openrouter", 0),
+            // #507: envelope reserves (window-fraction floor, absolute overrides).
+            ...envelopeFromEnv(env, "openrouter"),
             retryDelayMs: parseRequiredInt(env.PLURNK_PROVIDERS_RETRY_DELAY, "PLURNK_PROVIDERS_RETRY_DELAY", "openrouter"),
             retryAttempts: parseRequiredInt(env.PLURNK_PROVIDERS_RETRY_ATTEMPTS, "PLURNK_PROVIDERS_RETRY_ATTEMPTS", "openrouter"),
             // Opt-in data capture (#36), off by default, per-alias-scopable.
